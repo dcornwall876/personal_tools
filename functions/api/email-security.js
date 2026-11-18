@@ -19,9 +19,9 @@ export async function onRequestGet({ request }) {
       selector ? lookupTxt(`${selector}._domainkey.${domain}`) : Promise.resolve(null)
     ]);
 
-    const spfRecords = spfTxt.filter(value => /^v=spf1(?:\\s|$)/i.test(value));
+    const spfRecords = spfTxt.filter(value => /^v=spf1(?:\s|$)/i.test(value));
     const spf = assessSpf(spfRecords);
-    const dmarcRecords = dmarcTxt.filter(value => /^v=DMARC1(?:\\s|$)/i.test(value));
+    const dmarcRecords = dmarcTxt.filter(value => /^v=DMARC1(?:\s|$)/i.test(value));
     const dmarc = assessDmarc(dmarcRecords);
     const dkim = assessDkim(dkimTxt, selector);
 
@@ -42,7 +42,7 @@ async function lookupTxt(name) {
   if (!response.ok) throw new Error("DNS resolver error");
   const data = await response.json();
   return (data.Answer || []).filter(answer => answer.type === 16).map(answer =>
-    answer.data.replace(/^"|"$/g, "").replace(/"\\s*"/g, "")
+    answer.data.replace(/^"|"$/g, "").replace(/"\s*"/g, "")
   );
 }
 
@@ -51,8 +51,8 @@ function assessSpf(records) {
   if (records.length > 1) return { status: "Problem detected", summary: "Multiple SPF records were found. A domain should publish one SPF policy; multiple records can cause SPF PermError.", records };
   const record = records[0];
   const notes = [];
-  if (!/(^|\\s)(all)(\\s|$)/i.test(record)) notes.push("No 'all' mechanism was detected. Review whether the policy is complete.");
-  if (/\\+all(?:\\s|$)/i.test(record)) notes.push("The +all mechanism authorizes all senders and is generally unsafe.");
+  if (!/(^|\s)(all)(\s|$)/i.test(record)) notes.push("No 'all' mechanism was detected. Review whether the policy is complete.");
+  if (/\\+all(?:\s|$)/i.test(record)) notes.push("The +all mechanism authorizes all senders and is generally unsafe.");
   if (record.length > 450) notes.push("The TXT policy is unusually long; check DNS TXT string handling and SPF evaluation.");
   return {
     status: notes.length ? "Review recommended" : "Record found",
@@ -88,7 +88,7 @@ function assessDkim(records, selector) {
     records: [],
     notes: ["A missing selector is not evidence that DKIM is absent."]
   };
-  const keys = records.filter(value => /(?:^|;)\\s*p\\s*=/.test(value) || /^v=DKIM1/i.test(value));
+  const keys = records.filter(value => /(?:^|;)\s*p\s*=/.test(value) || /^v=DKIM1/i.test(value));
   if (!records.length || !keys.length) return {
     status: "No key found for this selector",
     summary: `No recognizable DKIM TXT public-key record was found at ${selector}._domainkey.`,
@@ -97,7 +97,7 @@ function assessDkim(records, selector) {
   };
   const notes = [];
   const record = keys[0];
-  const pMatch = record.match(/(?:^|;)\\s*p\\s*=\\s*([^;]*)/i);
+  const pMatch = record.match(/(?:^|;)\s*p\s*=\s*([^;]*)/i);
   if (pMatch && !pMatch[1].trim()) notes.push("The p= public-key value is empty; this can indicate a revoked key.");
   if (keys.length > 1) notes.push("More than one DKIM-like TXT record was returned for this selector; review the DNS configuration.");
   return {
