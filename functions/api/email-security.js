@@ -13,17 +13,39 @@ export async function onRequestGet({ request }) {
   }
 
   try {
-    const [spfTxt, dmarcTxt, dkimTxt] = await Promise.all([
+    const [spfTxt, dmarcTxt] = await Promise.all([
       lookupTxt(domain),
-      lookupTxt(`_dmarc.${domain}`),
-      selector ? lookupTxt(`${selector}._domainkey.${domain}`) : Promise.resolve(null)
+      lookupTxt(`_dmarc.${domain}`)
     ]);
+
+    // Selectors are provider-chosen, so this is a best-effort common-name scan.
+    const commonSelectors = [
+      "default", "google", "google1", "google2", "selector1", "selector2",
+      "s1", "s2", "dkim", "dkim1", "dkim2", "mail", "email",
+      "k1", "k2", "mandrill", "sendgrid", "protonmail", "protonmail2",
+      "protonmail3", "zoho", "amazonses"
+    ];
+    const selectors = [...new Set([...commonSelectors, ...(selector ? [selector] : [])])];
+    const discovered = [];
+
+    // Bounded concurrency avoids sending a large burst of DNS requests.
+    for (let i = 0; i < selectors.length; i += 5) {
+      const batch = selectors.slice(i, i + 5);
+      const results = await Promise.all(batch.map(async candidate => ({
+        selector: candidate,
+        records: await lookupTxt(`${candidate}._domainkey.${domain}`)
+      })));
+      for (const result of results) {
+        const keys = result.records.filter(value => /(?:^|;)\s*p\s*=/i.test(value) || /^v=DKIM1/i.test(value));
+        if (keys.length) discovered.push({ selector: result.selector, records: keys });
+      }
+    }
 
     const spfRecords = spfTxt.filter(value => /^v=spf1(?:\s|$)/i.test(value));
     const spf = assessSpf(spfRecords);
     const dmarcRecords = dmarcTxt.filter(value => /^v=DMARC1(?:\s|$)/i.test(value));
     const dmarc = assessDmarc(dmarcRecords);
-    const dkim = assessDkim(dkimTxt, selector);
+    const dkim = assessDkim(discovered, selectors, selector, domain);
 
     return json({ domain, spf, dkim, dmarc }, 200);
   } catch {
@@ -32,27 +54,54 @@ export async function onRequestGet({ request }) {
 }
 
 async function lookupTxt(name) {
-  const resolver = new URL("https://cloudflare-dns.com/dns-query");
-  resolver.searchParams.set("name", name);
-  resolver.searchParams.set("type", TXT_TYPE);
-  const response = await fetch(resolver.toString(), {
-    headers: { "Accept": "application/dns-json" },
-    cf: { cacheTtl: 60, cacheEverything: true }
-  });
-  if (!response.ok) throw new Error("DNS resolver error");
-  const data = await response.json();
-  return (data.Answer || []).filter(answer => answer.type === 16).map(answer =>
-    answer.data.replace(/^"|"$/g, "").replace(/"\s*"/g, "")
-  );
-}
+  // Follow CNAME aliases because DNS-over-HTTPS JSON may return the alias
+  // without including the target TXT answer in the same response.
+  const visited = new Set();
+  let current = name.replace(/\.$/, "");
+  const txtRecords = [];
 
+  for (let hop = 0; hop < 8; hop++) {
+    const normalized = current.toLowerCase().replace(/\.$/, "");
+    if (visited.has(normalized)) break;
+    visited.add(normalized);
+
+    const resolver = new URL("https://cloudflare-dns.com/dns-query");
+    resolver.searchParams.set("name", current);
+    resolver.searchParams.set("type", TXT_TYPE);
+    const response = await fetch(resolver.toString(), {
+      headers: { "Accept": "application/dns-json" },
+      cf: { cacheTtl: 60, cacheEverything: true }
+    });
+    if (!response.ok) throw new Error("DNS resolver error");
+
+    const data = await response.json();
+    const answers = data.Answer || [];
+
+    for (const answer of answers.filter(item => item.type === 16)) {
+      const value = answer.data
+        .replace(/^"/, "")
+        .replace(/"$/, "")
+        .replace(/"\s*"/g, "");
+      if (value && !txtRecords.includes(value)) txtRecords.push(value);
+    }
+
+    const cname = answers.find(item => item.type === 5);
+    if (!cname) break;
+
+    const target = String(cname.data || "").replace(/\.$/, "");
+    if (!target) break;
+    current = target;
+  }
+
+  return txtRecords;
+}
 function assessSpf(records) {
   if (!records.length) return { status: "Not found", summary: "No SPF TXT record beginning with v=spf1 was found at the domain.", records: [] };
   if (records.length > 1) return { status: "Problem detected", summary: "Multiple SPF records were found. A domain should publish one SPF policy; multiple records can cause SPF PermError.", records };
   const record = records[0];
   const notes = [];
   if (!/(^|\s)(all)(\s|$)/i.test(record)) notes.push("No 'all' mechanism was detected. Review whether the policy is complete.");
-  if (/\\+all(?:\s|$)/i.test(record)) notes.push("The +all mechanism authorizes all senders and is generally unsafe.");
+  if (/\+all(?:\s|$)/i.test(record)) notes.push("The +all mechanism authorizes all senders and is generally unsafe.");
   if (record.length > 450) notes.push("The TXT policy is unusually long; check DNS TXT string handling and SPF evaluation.");
   return {
     status: notes.length ? "Review recommended" : "Record found",
@@ -81,29 +130,36 @@ function assessDmarc(records) {
   };
 }
 
-function assessDkim(records, selector) {
-  if (!selector) return {
-    status: "Selector needed",
-    summary: "Enter a DKIM selector to check its public key. Selectors are provider-specific and cannot be reliably inferred from the domain alone.",
-    records: [],
-    notes: ["A missing selector is not evidence that DKIM is absent."]
-  };
-  const keys = records.filter(value => /(?:^|;)\s*p\s*=/.test(value) || /^v=DKIM1/i.test(value));
-  if (!records.length || !keys.length) return {
-    status: "No key found for this selector",
-    summary: `No recognizable DKIM TXT public-key record was found at ${selector}._domainkey.`,
-    records: records || [],
-    notes: ["Other DKIM selectors may exist. This result applies only to the selector entered."]
-  };
-  const notes = [];
-  const record = keys[0];
-  const pMatch = record.match(/(?:^|;)\s*p\s*=\s*([^;]*)/i);
-  if (pMatch && !pMatch[1].trim()) notes.push("The p= public-key value is empty; this can indicate a revoked key.");
-  if (keys.length > 1) notes.push("More than one DKIM-like TXT record was returned for this selector; review the DNS configuration.");
+function assessDkim(discovered, testedSelectors, customSelector, domain) {
+  const records = discovered.flatMap(item =>
+    item.records.map(record => `${item.selector}._domainkey.${domain}: ${record}`)
+  );
+
+  if (!discovered.length) {
+    return {
+      status: "No key found in common-selector scan",
+      summary: `No recognizable DKIM public-key record was found among ${testedSelectors.length} tested selectors.`,
+      records: [],
+      notes: [
+        "This scan is not exhaustive. DKIM selectors can use names not included in the common-selector list.",
+        customSelector
+          ? `Your custom selector '${customSelector}' was included in the scan.`
+          : "You can try a custom selector supplied by your email provider."
+      ]
+    };
+  }
+
+  const notes = [
+    `Tested ${testedSelectors.length} selector names. This is a best-effort scan of common names, not a complete directory of all possible DKIM selectors.`,
+    "Finding a public key does not verify that outgoing messages are actually signed or that their signatures pass."
+  ];
+  if (customSelector) notes.push(`Your custom selector '${customSelector}' was included.`);
+
   return {
-    status: notes.length ? "Review recommended" : "Public key found",
-    summary: `A DKIM TXT record was found for selector '${selector}'. This does not verify signatures on actual messages.`,
-    records: keys, notes
+    status: `${discovered.length} DKIM selector${discovered.length === 1 ? "" : "s"} found`,
+    summary: `Found ${records.length} recognizable DKIM public-key record(s) across ${discovered.length} selector(s).`,
+    records,
+    notes
   };
 }
 

@@ -7,7 +7,7 @@ A privacy-conscious utility website for Cloudflare Pages.
 - QR code generator (runs in the browser; QRCode.js is loaded from cdnjs)
 - Password generator (Web Crypto random values, browser-side)
 - DNS lookup (Cloudflare Pages Function querying Cloudflare DNS-over-HTTPS)
-- Email security checker (public SPF, DKIM and DMARC DNS record checks; DKIM selector supplied by visitor)
+- Email security checker (public SPF, DKIM and DMARC DNS record checks; DKIM scans common selectors and accepts a custom selector)
 - Browser privacy check (local browser signals)
 - IP information (Cloudflare request metadata for the current visitor)
 
@@ -49,6 +49,11 @@ Static tools can be tested by opening `index.html` in a browser, but DNS and IP 
 ## Email security checker scope
 
 - SPF: finds SPF TXT records and flags multiple records and a few obvious policy concerns. It does not recursively evaluate SPF includes or calculate the full DNS-lookup limit.
-- DKIM: checks the selector entered by the visitor at `selector._domainkey.domain`. DKIM selectors are provider-specific; a missing result for one selector does not prove that the domain has no DKIM.
+- DKIM: automatically checks common selectors at `selector._domainkey.domain` and also checks a custom selector when supplied. It displays every matching public key it discovers. Selector names are provider-specific and arbitrary, so this scan is not exhaustive; no matches do not prove that the domain has no DKIM.
 - DMARC: reads `_dmarc.domain` and checks common policy tags. It does not confirm that aggregate reports are being delivered.
 - These checks inspect public DNS configuration only. They do not send test emails, inspect message headers, or guarantee that a sender's messages pass SPF, DKIM or DMARC.
+
+
+### DNS alias handling
+
+The email security checker follows DNS CNAME aliases when retrieving TXT records, including externally hosted DMARC records. It follows a bounded chain (up to eight aliases) and stops if it detects a loop.

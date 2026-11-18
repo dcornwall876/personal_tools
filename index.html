@@ -90,13 +90,13 @@
       <div class="panel-heading"><div><p class="eyebrow">04 / EMAIL SECURITY</p><h2>Email Domain Security Checker</h2><p>Inspect publicly available SPF, DKIM and DMARC DNS records for a domain.</p></div></div>
       <label for="email-domain">Domain to check</label>
       <input id="email-domain" type="text" autocomplete="off" spellcheck="false" placeholder="example.com">
-      <label for="dkim-selector">DKIM selector <span class="fine-print">(optional, but needed to check a specific DKIM key)</span></label>
-      <input id="dkim-selector" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. google, selector1, protonmail">
+      <label for="dkim-selector">Custom DKIM selector <span class="fine-print">(optional — common selectors are scanned automatically)</span></label>
+      <input id="dkim-selector" type="text" autocomplete="off" spellcheck="false" placeholder="Optional: e.g. google, selector1, protonmail">
       <div class="controls">
         <button id="email-check" class="primary">Check email security</button>
       </div>
       <div id="email-results" class="results" aria-live="polite">Enter a public domain to inspect its email authentication records.</div>
-      <p class="fine-print">This tool reads public DNS records only. DKIM requires a selector supplied by the domain's email provider; a selector that was not tested does not mean DKIM is absent. The checks are configuration indicators, not a live test of an email message or a guarantee that messages pass authentication.</p>
+      <p class="fine-print">This tool reads public DNS records only. It automatically tests a list of common DKIM selectors and can also test a custom selector you enter. The scan is not exhaustive because providers can use any selector name. These checks are configuration indicators, not a live test of an email message or a guarantee that messages pass authentication.</p>
     </section>
 
     <section id="panel-privacy" class="panel">
