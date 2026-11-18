@@ -118,22 +118,6 @@ $("dns-search").addEventListener("click", async () => {
   } catch (error) { showError(target, error.message || "Unable to complete the DNS lookup."); }
 });
 
-// Hash generation uses Web Crypto; input never leaves the browser.
-$("hash-generate").addEventListener("click", async () => {
-  const text = $("hash-input").value;
-  if (!text) return setStatus("hash-status", "Enter text first.");
-  try {
-    const algorithm = $("hash-algorithm").value;
-    const bytes = new TextEncoder().encode(text);
-    const digest = await crypto.subtle.digest(algorithm, bytes);
-    const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
-    $("hash-output").textContent = hex;
-    $("hash-copy").disabled = false;
-    setStatus("hash-status", `${algorithm} generated locally.`);
-  } catch { setStatus("hash-status", "Hashing requires a secure context (HTTPS) and a supported browser."); }
-});
-$("hash-copy").addEventListener("click", () => copyText($("hash-output").textContent, "hash-status"));
-
 // Browser privacy check. Signals are descriptive, not a fingerprinting or anonymity verdict.
 $("privacy-run").addEventListener("click", () => {
   const target = "privacy-results";
@@ -168,4 +152,61 @@ $("ip-check").addEventListener("click", async () => {
     addResult(target, "Cloudflare data centre", data.colo || "Not available");
     addResult(target, "Network ASN", data.asn ? `AS${data.asn}` : "Not available");
   } catch (error) { showError(target, error.message || "Unable to retrieve IP information."); }
+});
+
+
+// Public email authentication DNS checks (SPF, DKIM and DMARC).
+$("email-check").addEventListener("click", async () => {
+  const domain = $("email-domain").value.trim().replace(/\.$/, "").toLowerCase();
+  const selector = $("dkim-selector").value.trim();
+  const target = "email-results";
+  const validDomain = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/;
+  if (!validDomain.test(domain)) return showError(target, "Enter a valid public domain name, such as example.com.");
+  if (selector && !/^[a-zA-Z0-9_-]{1,63}$/.test(selector)) return showError(target, "Enter a valid DKIM selector using letters, numbers, hyphens or underscores.");
+  $(target).textContent = "Checking public DNS records…";
+  try {
+    const params = new URLSearchParams({domain});
+    if (selector) params.set("selector", selector);
+    const response = await fetch(`/api/email-security?${params.toString()}`, {
+      headers: {"Accept":"application/json"}, cache: "no-store"
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Email security lookup failed.");
+    $(target).replaceChildren();
+
+    const heading = document.createElement("p");
+    heading.className = "status";
+    heading.textContent = `DNS assessment for ${data.domain}`;
+    $(target).append(heading);
+
+    const addSection = (name, item) => {
+      const block = document.createElement("div");
+      block.className = "result-item";
+      const title = document.createElement("strong");
+      title.textContent = `${name}: ${item.status}`;
+      block.append(title);
+      const detail = document.createElement("p");
+      detail.textContent = item.summary;
+      block.append(detail);
+      if (item.records && item.records.length) {
+        item.records.forEach(record => {
+          const code = document.createElement("code");
+          code.textContent = record;
+          block.append(code);
+        });
+      }
+      if (item.notes && item.notes.length) {
+        const note = document.createElement("p");
+        note.className = "fine-print";
+        note.textContent = item.notes.join(" ");
+        block.append(note);
+      }
+      $(target).append(block);
+    };
+    addSection("SPF", data.spf);
+    addSection("DKIM", data.dkim);
+    addSection("DMARC", data.dmarc);
+  } catch (error) {
+    showError(target, error.message || "Unable to complete the email security check.");
+  }
 });

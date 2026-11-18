@@ -7,7 +7,7 @@ A privacy-conscious utility website for Cloudflare Pages.
 - QR code generator (runs in the browser; QRCode.js is loaded from cdnjs)
 - Password generator (Web Crypto random values, browser-side)
 - DNS lookup (Cloudflare Pages Function querying Cloudflare DNS-over-HTTPS)
-- Hash generator (Web Crypto SHA-256 / SHA-384 / SHA-512, browser-side)
+- Email security checker (public SPF, DKIM and DMARC DNS record checks; DKIM selector supplied by visitor)
 - Browser privacy check (local browser signals)
 - IP information (Cloudflare request metadata for the current visitor)
 
@@ -30,9 +30,9 @@ If your repository has a `public` folder and you prefer to use it as the Pages o
 
 ## Privacy notes
 
-- Password generation and hashing happen in the browser.
+- Password generation happens in the browser.
 - QR content is encoded in the browser. The QRCode.js library is loaded from cdnjs, so the browser contacts that CDN to download the library. The QR text itself is not sent to the CDN.
-- DNS lookups are sent by the Pages Function to Cloudflare's public DNS-over-HTTPS resolver.
+- DNS lookups, including the email security checks, are sent by Pages Functions to Cloudflare's public DNS-over-HTTPS resolver.
 - The IP endpoint returns the IP address and coarse connection metadata Cloudflare sees for the current visitor. It does not intentionally persist the response, but Cloudflare may process operational data under its service terms.
 - The privacy check inspects ordinary browser-exposed settings. It is not a comprehensive fingerprinting, tracking, WebRTC leak or anonymity test.
 - Do not enter secrets into the DNS lookup tool. Do not treat this website as a password manager.
@@ -44,3 +44,11 @@ If your repository has a `public` folder and you prefer to use it as the Pages o
 ## Local testing
 
 Static tools can be tested by opening `index.html` in a browser, but DNS and IP endpoints require Cloudflare Pages Functions. Deploy to a Pages preview or production URL to test all six tools.
+
+
+## Email security checker scope
+
+- SPF: finds SPF TXT records and flags multiple records and a few obvious policy concerns. It does not recursively evaluate SPF includes or calculate the full DNS-lookup limit.
+- DKIM: checks the selector entered by the visitor at `selector._domainkey.domain`. DKIM selectors are provider-specific; a missing result for one selector does not prove that the domain has no DKIM.
+- DMARC: reads `_dmarc.domain` and checks common policy tags. It does not confirm that aggregate reports are being delivered.
+- These checks inspect public DNS configuration only. They do not send test emails, inspect message headers, or guarantee that a sender's messages pass SPF, DKIM or DMARC.
