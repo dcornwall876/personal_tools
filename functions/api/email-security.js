@@ -43,7 +43,7 @@ export async function onRequestGet({ request }) {
 
     const spfRecords = spfTxt.filter(value => /^v=spf1(?:\s|$)/i.test(value));
     const spf = assessSpf(spfRecords);
-    const dmarcRecords = dmarcTxt.filter(value => /^v=DMARC1(?:\s|$)/i.test(value));
+    const dmarcRecords = dmarcTxt.filter(value => /^v=DMARC1(?:;|\s|$)/i.test(value));
     const dmarc = assessDmarc(dmarcRecords);
     const dkim = assessDkim(discovered, selectors, selector, domain);
 
