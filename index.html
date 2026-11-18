@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A collection of privacy-conscious browser tools.">
+  <meta name="referrer" content="no-referrer">
+  <title>Personal Tools</title>
+  <link rel="stylesheet" href="/styles.css">
+  <!-- QRCode.js runs locally in the browser. The library itself is loaded from cdnjs. -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Personal Tools home">
+      <span class="brand-mark">◇</span><span>Personal Tools</span>
+    </a>
+    <span class="privacy-note"><span class="dot"></span> Privacy-conscious utilities</span>
+  </header>
+
+  <main class="container">
+    <section class="intro">
+      <p class="eyebrow">YOUR OWN DIGITAL TOOLKIT</p>
+      <h1>Useful tools.<br><span>Less unnecessary data sharing.</span></h1>
+      <p class="intro-copy">A small collection of utilities hosted on your domain. Passwords, QR content and hashes are processed in your browser.</p>
+    </section>
+
+    <nav class="tabs" aria-label="Tools">
+      <button class="tab active" data-panel="qr">QR Generator</button>
+      <button class="tab" data-panel="password">Password Generator</button>
+      <button class="tab" data-panel="dns">DNS Lookup</button>
+      <button class="tab" data-panel="hash">Hash Generator</button>
+      <button class="tab" data-panel="privacy">Privacy Check</button>
+      <button class="tab" data-panel="ip">IP Information</button>
+    </nav>
+
+    <section id="panel-qr" class="panel active">
+      <div class="panel-heading"><div><p class="eyebrow">01 / CREATE</p><h2>QR Code Generator</h2><p>Turn a link or short text into a QR code. The content is encoded in your browser.</p></div></div>
+      <label for="qr-input">Text or URL</label>
+      <textarea id="qr-input" rows="4" maxlength="2000" placeholder="https://example.com"></textarea>
+      <div class="controls">
+        <label class="inline-label" for="qr-size">Size
+          <select id="qr-size"><option value="160">160 × 160</option><option value="220" selected>220 × 220</option><option value="300">300 × 300</option></select>
+        </label>
+        <button id="qr-create" class="primary">Generate QR code</button>
+      </div>
+      <p id="qr-status" class="status" aria-live="polite">Enter text or a URL to begin.</p>
+      <div class="qr-output">
+        <div id="qr-code" class="qr-canvas" aria-label="Generated QR code"></div>
+        <button id="qr-download" class="secondary" disabled>Download PNG</button>
+      </div>
+      <p class="fine-print">The QR library is downloaded from cdnjs. The text you enter is not sent to cdnjs, but your browser contacts that CDN to load the library.</p>
+    </section>
+
+    <section id="panel-password" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">02 / GENERATE</p><h2>Password Generator</h2><p>Generate random passwords using your browser's cryptographic random number generator.</p></div></div>
+      <div class="field-row">
+        <label for="pw-length">Password length <strong id="pw-length-value">24</strong></label>
+        <input id="pw-length" type="range" min="12" max="64" value="24">
+      </div>
+      <div class="options">
+        <label><input id="pw-upper" type="checkbox" checked> Uppercase letters</label>
+        <label><input id="pw-lower" type="checkbox" checked> Lowercase letters</label>
+        <label><input id="pw-numbers" type="checkbox" checked> Numbers</label>
+        <label><input id="pw-symbols" type="checkbox" checked> Symbols</label>
+        <label><input id="pw-avoid" type="checkbox"> Avoid ambiguous characters (O, 0, l, I)</label>
+      </div>
+      <button id="pw-generate" class="primary">Generate password</button>
+      <div class="result-row"><output id="pw-output" class="code-output">Your password will appear here</output><button id="pw-copy" class="secondary" disabled>Copy</button></div>
+      <p id="pw-status" class="status" aria-live="polite">Generated locally. Nothing is uploaded.</p>
+      <p class="fine-print">Use a reputable password manager to store passwords. Do not reuse passwords across services.</p>
+    </section>
+
+    <section id="panel-dns" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">03 / INVESTIGATE</p><h2>DNS Lookup</h2><p>Query common DNS record types using Cloudflare's DNS-over-HTTPS resolver.</p></div></div>
+      <label for="dns-domain">Domain name</label>
+      <input id="dns-domain" type="text" autocomplete="off" spellcheck="false" placeholder="example.com">
+      <div class="controls">
+        <label class="inline-label" for="dns-type">Record type
+          <select id="dns-type"><option>A</option><option>AAAA</option><option>MX</option><option>TXT</option><option>NS</option><option>CNAME</option><option>SOA</option><option>CAA</option><option>PTR</option><option>SRV</option></select>
+        </label>
+        <button id="dns-search" class="primary">Look up DNS</button>
+      </div>
+      <div id="dns-results" class="results" aria-live="polite">Enter a domain to view its DNS records.</div>
+      <p class="fine-print">The query is sent from this site's Cloudflare Function to Cloudflare's public DNS resolver. Do not use this tool to submit private internal hostnames.</p>
+    </section>
+
+    <section id="panel-hash" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">04 / VERIFY</p><h2>Hash Generator</h2><p>Generate cryptographic SHA hashes from text in your browser using the Web Crypto API.</p></div></div>
+      <label for="hash-input">Text to hash</label>
+      <textarea id="hash-input" rows="4" placeholder="Enter text here"></textarea>
+      <div class="controls">
+        <label class="inline-label" for="hash-algorithm">Algorithm
+          <select id="hash-algorithm"><option>SHA-256</option><option>SHA-384</option><option>SHA-512</option></select>
+        </label>
+        <button id="hash-generate" class="primary">Generate hash</button>
+      </div>
+      <div class="result-row"><output id="hash-output" class="code-output">Your hash will appear here</output><button id="hash-copy" class="secondary" disabled>Copy</button></div>
+      <p id="hash-status" class="status" aria-live="polite">Text is processed locally in your browser.</p>
+      <p class="fine-print">A hash is not encryption and cannot be reversed to recover the original text. Do not use an ordinary hash for password storage.</p>
+    </section>
+
+    <section id="panel-privacy" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">05 / REVIEW</p><h2>Browser Privacy Check</h2><p>Review a few privacy-related browser settings. This is an informational check, not a full anonymity or leak test.</p></div></div>
+      <button id="privacy-run" class="primary">Check this browser</button>
+      <div id="privacy-results" class="results" aria-live="polite">Select “Check this browser” to inspect available browser signals.</div>
+      <p class="fine-print">Checks run locally. Browser settings and signals are not a definitive measure of privacy or security.</p>
+    </section>
+
+    <section id="panel-ip" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">06 / NETWORK</p><h2>IP Information</h2><p>View the public IP address and limited connection information visible to Cloudflare for this request.</p></div></div>
+      <button id="ip-check" class="primary">Check my connection</button>
+      <div id="ip-results" class="results" aria-live="polite">Select the button to retrieve the connection information.</div>
+      <p class="fine-print">Your IP address is personal data. This endpoint returns information about the current request and does not intentionally store it. Your hosting provider may still process operational logs under its own policies.</p>
+    </section>
+
+    <footer>
+      <p>Personal Tools · Built for practical, privacy-conscious use.</p>
+      <p>No advertising or analytics scripts are included.</p>
+    </footer>
+  </main>
+</body>
+</html>
