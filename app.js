@@ -280,3 +280,182 @@ $("email-report").addEventListener("click", () => {
   link.href = objectUrl; link.download = `email-security-${data.domain}.txt`;
   document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(objectUrl);
 });
+
+
+
+// Domain Health Checker combines the existing email-security assessment with
+// DNS and HTTPS checks. Results are diagnostic indicators, not certification.
+let latestDomainHealthReport = null;
+
+function normalizeHealthStatus(item, kind) {
+  if (!item) return { status: "Not tested", summary: "This check did not return a result.", records: [] };
+  if (["Pass", "Warning", "Fail", "Not tested"].includes(item.status)) return item;
+
+  const raw = String(item.status || "").toLowerCase();
+  if (kind === "dkim" && raw.includes("no key found")) {
+    return { ...item, status: "Not tested", summary: `${item.summary} No match is not proof that DKIM is absent because selectors can have arbitrary names.` };
+  }
+  if (kind === "spf" && raw.includes("problem detected")) return { ...item, status: "Fail" };
+  if (kind === "dmarc" && raw.includes("problem detected")) return { ...item, status: "Fail" };
+  if (raw.startsWith("no ") || raw.includes("not found") || raw.includes("unrecognized") || raw.includes("review") ||
+      raw.includes("could not") || raw.includes("unavailable")) return { ...item, status: "Warning" };
+  if (raw.includes("found") || raw.includes("retrieved") || raw.includes("validated")) return { ...item, status: "Pass" };
+  return { ...item, status: "Warning" };
+}
+
+function renderHealthItem(target, name, item) {
+  const block = document.createElement("article");
+  block.className = "health-item";
+  const top = document.createElement("div");
+  top.className = "health-item-top";
+  const title = document.createElement("strong");
+  title.textContent = name;
+  const badge = document.createElement("span");
+  badge.className = `health-badge health-${String(item.status).toLowerCase().replace(/\s+/g, "-")}`;
+  badge.textContent = item.status;
+  top.append(title, badge);
+  const summary = document.createElement("p");
+  summary.textContent = item.summary || "No additional details were returned.";
+  block.append(top, summary);
+  (item.records || []).forEach(record => {
+    const code = document.createElement("code");
+    code.textContent = record;
+    block.append(code);
+  });
+  (item.notes || []).forEach(note => {
+    const noteNode = document.createElement("p");
+    noteNode.className = "fine-print health-note";
+    noteNode.textContent = note;
+    block.append(noteNode);
+  });
+  target.append(block);
+}
+
+$("health-check").addEventListener("click", async () => {
+  const domain = $("health-domain").value.trim().replace(/\.$/, "").toLowerCase();
+  const target = "health-results";
+  const validDomain = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(\.([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$/;
+  if (!validDomain.test(domain) || !domain.includes(".")) {
+    return showError(target, "Enter a valid public domain name, such as example.com.");
+  }
+
+  $("health-report").hidden = true;
+  latestDomainHealthReport = null;
+  $(target).textContent = "Checking DNS, email-security records and HTTPS availability…";
+
+  try {
+    const params = new URLSearchParams({ domain });
+    const [domainResponse, emailResponse] = await Promise.all([
+      fetch(`/api/domain-health?${params}`, { headers: { Accept: "application/json" }, cache: "no-store" }),
+      fetch(`/api/email-security?${params}`, { headers: { Accept: "application/json" }, cache: "no-store" })
+    ]);
+    const [domainData, emailData] = await Promise.all([domainResponse.json(), emailResponse.json()]);
+    if (!domainResponse.ok) throw new Error(domainData.error || "Domain health lookup failed.");
+    if (!emailResponse.ok) throw new Error(emailData.error || "Email security lookup failed.");
+
+    const checks = [
+      ["DNS resolution", normalizeHealthStatus(domainData.dns, "dns")],
+      ["HTTPS availability", normalizeHealthStatus(domainData.https, "https")],
+      ["SPF", normalizeHealthStatus(emailData.spf, "spf")],
+      ["DKIM", normalizeHealthStatus(emailData.dkim, "dkim")],
+      ["DMARC", normalizeHealthStatus(emailData.dmarc, "dmarc")],
+      ["MX records", normalizeHealthStatus(emailData.mx, "mx")],
+      ["DNSSEC", normalizeHealthStatus(domainData.dnssec, "dnssec")],
+      ["CAA", normalizeHealthStatus(domainData.caa, "caa")],
+      ["MTA-STS", normalizeHealthStatus(emailData.mtaSts, "mtaSts")],
+      ["TLS-RPT", normalizeHealthStatus(emailData.tlsRpt, "tlsRpt")]
+    ];
+
+    const assessed = checks.filter(([, item]) => item.status !== "Not tested");
+    const points = assessed.reduce((sum, [, item]) => sum + (item.status === "Pass" ? 1 : item.status === "Warning" ? 0.5 : 0), 0);
+    const score = assessed.length ? Math.round(points / assessed.length * 100) : null;
+    const counts = checks.reduce((acc, [, item]) => {
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    }, {});
+    const report = {
+      domain,
+      generatedAt: domainData.generatedAt || new Date().toISOString(),
+      score,
+      assessed: assessed.length,
+      total: checks.length,
+      counts,
+      checks
+    };
+    latestDomainHealthReport = report;
+    $("health-report").hidden = false;
+    $(target).replaceChildren();
+
+    const summary = document.createElement("div");
+    summary.className = "health-summary";
+    const scoreBlock = document.createElement("div");
+    scoreBlock.className = "health-score";
+    const scoreLabel = document.createElement("span");
+    scoreLabel.className = "health-muted";
+    scoreLabel.textContent = "Indicative domain health";
+    const scoreValue = document.createElement("strong");
+    scoreValue.textContent = score === null ? "N/A" : `${score}%`;
+    scoreBlock.append(scoreLabel, scoreValue);
+
+    const countsBlock = document.createElement("div");
+    countsBlock.className = "health-counts";
+    [["Pass", counts.Pass || 0], ["Warning", counts.Warning || 0], ["Fail", counts.Fail || 0], ["Not tested", counts["Not tested"] || 0]].forEach(([label, value]) => {
+      const metric = document.createElement("div");
+      metric.className = "health-metric";
+      const number = document.createElement("strong");
+      number.textContent = String(value);
+      const caption = document.createElement("span");
+      caption.textContent = label;
+      metric.append(number, caption);
+      countsBlock.append(metric);
+    });
+    const scoreNote = document.createElement("p");
+    scoreNote.className = "fine-print";
+    scoreNote.textContent = `Based on ${assessed.length} assessed checks. Pass = 1 point, Warning = 0.5 point, Fail = 0 points. Not tested checks are excluded. This is an indicative configuration score, not a certification, vulnerability scan or deliverability guarantee.`;
+    summary.append(scoreBlock, countsBlock, scoreNote);
+    $(target).append(summary);
+
+    const heading = document.createElement("p");
+    heading.className = "status";
+    heading.textContent = `Assessment for ${domain} · ${new Date(report.generatedAt).toLocaleString()}`;
+    $(target).append(heading);
+    checks.forEach(([name, item]) => renderHealthItem($(target), name, item));
+
+    const limitation = document.createElement("p");
+    limitation.className = "fine-print";
+    limitation.textContent = "Important: DKIM selector discovery is best-effort and may miss custom selectors. DNSSEC is inferred from the resolver's AD flag. Optional records such as CAA, MTA-STS and TLS-RPT may not be required for every domain. The HTTPS check confirms that an HTTPS endpoint responded; it does not inspect the full TLS configuration or perform a live SMTP test.";
+    $(target).append(limitation);
+  } catch (error) {
+    showError(target, error.message || "Unable to complete the domain health assessment.");
+  }
+});
+
+$("health-report").addEventListener("click", () => {
+  if (!latestDomainHealthReport) return;
+  const report = latestDomainHealthReport;
+  const lines = [
+    `Domain health assessment: ${report.domain}`,
+    `Generated: ${report.generatedAt}`,
+    `Indicative domain health: ${report.score === null ? "Not calculated" : `${report.score}%`}`,
+    `Checks assessed: ${report.assessed}/${report.total}`,
+    `Pass: ${report.counts.Pass || 0}; Warning: ${report.counts.Warning || 0}; Fail: ${report.counts.Fail || 0}; Not tested: ${report.counts["Not tested"] || 0}`,
+    ""
+  ];
+  report.checks.forEach(([name, item]) => {
+    lines.push(`${name}: ${item.status}`, item.summary || "");
+    (item.records || []).forEach(record => lines.push(`  Record: ${record}`));
+    (item.notes || []).forEach(note => lines.push(`  Note: ${note}`));
+    lines.push("");
+  });
+  lines.push("Scoring: Pass = 1 point, Warning = 0.5 point, Fail = 0 points. Not tested checks are excluded.");
+  lines.push("Limitations: This is a public DNS/HTTPS configuration assessment, not a certification, penetration test, full TLS audit, live SMTP TLS negotiation or email deliverability test. DKIM selector discovery is best-effort. DNSSEC uses the resolver's AD signal.");
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const link = document.createElement("a");
+  const objectUrl = URL.createObjectURL(blob);
+  link.href = objectUrl;
+  link.download = `domain-health-${report.domain}.txt`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+});

@@ -8,6 +8,7 @@ A privacy-conscious utility website for Cloudflare Pages.
 - Password generator (Web Crypto random values, browser-side)
 - DNS lookup (Cloudflare Pages Function querying Cloudflare DNS-over-HTTPS)
 - Expanded email security checker (SPF, DKIM, DMARC, MX, MTA-STS, TLS-RPT, DNSSEC, BIMI and DANE/TLSA indicators; includes a downloadable text report)
+- Domain Health Checker (combines email-security indicators with DNS resolution, DNSSEC AD signal, CAA, nameservers and an HTTPS endpoint check; includes a downloadable text report)
 - Browser privacy check (local browser signals)
 - IP information (Cloudflare request metadata for the current visitor)
 
@@ -43,7 +44,7 @@ If your repository has a `public` folder and you prefer to use it as the Pages o
 
 ## Local testing
 
-Static tools can be tested by opening `index.html` in a browser, but DNS and IP endpoints require Cloudflare Pages Functions. Deploy to a Pages preview or production URL to test all six tools.
+Static tools can be tested by opening `index.html` in a browser, but DNS and IP endpoints require Cloudflare Pages Functions. Deploy to a Pages preview or production URL to test all seven tools.
 
 
 ## Email security checker scope
@@ -61,3 +62,15 @@ Static tools can be tested by opening `index.html` in a browser, but DNS and IP 
 - Authentication coverage is the percentage of SPF, DKIM and DMARC record types detected. The separate diagnostic score is an indicative heuristic based on detected records and basic warnings; neither score is a certification or deliverability guarantee.
 - The checker follows DNS CNAME aliases with a bounded chain of up to eight hops and loop detection.
 
+
+
+## Domain Health Checker scope
+
+- The Domain Health Checker combines the existing email-security endpoint with a separate DNS/HTTPS assessment endpoint.
+- The 10 displayed checks are DNS resolution, HTTPS availability, SPF, DKIM, DMARC, MX, DNSSEC, CAA, MTA-STS and TLS-RPT.
+- The indicative score assigns Pass = 1 point, Warning = 0.5 point and Fail = 0 points. Not tested checks are excluded. The score is not a certification, penetration test, vulnerability scan or deliverability guarantee.
+- DKIM discovery reuses the existing best-effort common-selector scan. A scan with no matching selector is marked Not tested rather than proving DKIM is absent.
+- DNSSEC uses the authenticated-data (AD) flag returned by Cloudflare's DNS-over-HTTPS resolver. This is a resolver-side validation indicator, not an independent DNSSEC audit.
+- HTTPS availability uses a HEAD request to the submitted domain with redirects not followed. It confirms an HTTPS endpoint response, not full TLS configuration or website security.
+- CAA, MTA-STS and TLS-RPT are optional features; their absence is shown as a warning for visibility and should be interpreted in context.
+- The checker does not perform a live SMTP connection or STARTTLS negotiation.

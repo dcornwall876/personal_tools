@@ -31,6 +31,7 @@
       <button class="tab" data-panel="password">Password Generator</button>
       <button class="tab" data-panel="dns">DNS Lookup</button>
       <button class="tab" data-panel="email">Email Security</button>
+      <button class="tab" data-panel="domain-health">Domain Health</button>
       <button class="tab" data-panel="privacy">Privacy Check</button>
       <button class="tab" data-panel="ip">IP Information</button>
     </nav>
@@ -100,15 +101,28 @@
       <p class="fine-print">This tool checks public DNS records and retrieves the MTA-STS policy over HTTPS. Live SMTP TLS negotiation is explicitly marked “Not tested”: the checker does not open an SMTP connection or verify a live STARTTLS handshake, negotiated TLS version or mail-server certificate. It does not send email or guarantee message deliverability. Domain names and DNS lookup information are sent to this site’s Cloudflare Function and Cloudflare DNS. DKIM selector discovery is best-effort, not exhaustive.</p>
     </section>
 
+
+    <section id="panel-domain-health" class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">05 / DOMAIN SECURITY</p><h2>Domain Health Checker</h2><p>Review important public DNS, email-security and HTTPS indicators for a domain.</p></div></div>
+      <label for="health-domain">Domain to assess</label>
+      <input id="health-domain" type="text" autocomplete="off" spellcheck="false" placeholder="example.com">
+      <div class="controls">
+        <button id="health-check" class="primary">Check domain health</button>
+        <button id="health-report" class="secondary" type="button" hidden>Download report</button>
+      </div>
+      <div id="health-results" class="results" aria-live="polite">Enter a public domain to begin the assessment.</div>
+      <p class="fine-print">The assessment checks public DNS records and makes an HTTPS HEAD request to the domain. DNSSEC status uses the resolver's authenticated-data (AD) signal. DKIM selector discovery is best-effort. A missing optional feature is not necessarily a security vulnerability. Live SMTP TLS negotiation is not tested. Domain and DNS query information is sent to this site's Cloudflare Function and Cloudflare DNS; the HTTPS check contacts the domain being assessed.</p>
+    </section>
+
     <section id="panel-privacy" class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">05 / REVIEW</p><h2>Browser Privacy Check</h2><p>Review a few privacy-related browser settings. This is an informational check, not a full anonymity or leak test.</p></div></div>
+      <div class="panel-heading"><div><p class="eyebrow">06 / REVIEW</p><h2>Browser Privacy Check</h2><p>Review a few privacy-related browser settings. This is an informational check, not a full anonymity or leak test.</p></div></div>
       <button id="privacy-run" class="primary">Check this browser</button>
       <div id="privacy-results" class="results" aria-live="polite">Select “Check this browser” to inspect available browser signals.</div>
       <p class="fine-print">Checks run locally. Browser settings and signals are not a definitive measure of privacy or security.</p>
     </section>
 
     <section id="panel-ip" class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">06 / NETWORK</p><h2>IP Information</h2><p>View the public IP address and limited connection information visible to Cloudflare for this request.</p></div></div>
+      <div class="panel-heading"><div><p class="eyebrow">07 / NETWORK</p><h2>IP Information</h2><p>View the public IP address and limited connection information visible to Cloudflare for this request.</p></div></div>
       <button id="ip-check" class="primary">Check my connection</button>
       <div id="ip-results" class="results" aria-live="polite">Select the button to retrieve the connection information.</div>
       <p class="fine-print">Your IP address is personal data. This endpoint returns information about the current request and does not intentionally store it. Your hosting provider may still process operational logs under its own policies.</p>

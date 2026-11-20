@@ -63,3 +63,31 @@ footer p { margin:4px; }
 .coverage-track { height:10px; margin-top:10px; overflow:hidden; border-radius:99px; background:#e7edef; }
 .coverage-fill { height:100%; border-radius:99px; background:var(--accent); transition:width .25s ease; }
 .coverage-summary .fine-print { margin:9px 0 0; }
+
+
+/* Domain Health Checker */
+.health-summary { padding:16px; margin:14px 0 18px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.health-score { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.health-score strong { font-size:34px; letter-spacing:-.05em; color:var(--accent-dark); }
+.health-muted { color:var(--muted); font-size:13px; font-weight:700; }
+.health-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px; }
+.health-metric { display:flex; flex-direction:column; gap:2px; padding:10px; border-radius:8px; background:var(--wash); }
+.health-metric strong { font-size:19px; color:var(--ink); }
+.health-metric span { color:var(--muted); font-size:11px; }
+.health-summary .fine-print { margin:12px 0 0; }
+.health-item { padding:13px 0; border-bottom:1px solid var(--line); }
+.health-item:last-of-type { border-bottom:0; }
+.health-item-top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:5px; }
+.health-item-top strong { color:var(--ink); }
+.health-item p { margin:5px 0; }
+.health-item code { display:block; margin-top:6px; padding:7px 9px; background:#f2f5f6; border-radius:6px; font-family:ui-monospace,monospace; font-size:11px; overflow-wrap:anywhere; }
+.health-badge { display:inline-block; flex:0 0 auto; padding:4px 8px; border-radius:20px; font-size:10px; font-weight:750; background:#edf0f2; color:#56636c; }
+.health-pass { background:#e4f3ec; color:#176b4b; }
+.health-warning { background:#fff3d9; color:#8a5a00; }
+.health-fail { background:#fde8e7; color:#a52b27; }
+.health-not-tested { background:#edf0f2; color:#56636c; }
+.health-note { margin:8px 0 0 !important; }
+@media (max-width:600px) {
+  .health-counts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .health-score strong { font-size:29px; }
+}
