@@ -87,7 +87,7 @@
     </section>
 
     <section id="panel-email" class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">04 / EMAIL SECURITY</p><h2>Email Domain Security Checker</h2><p>Inspect publicly available SPF, DKIM and DMARC DNS records for a domain.</p></div></div>
+      <div class="panel-heading"><div><p class="eyebrow">04 / EMAIL SECURITY</p><h2>Email Domain Security Checker</h2><p>Review email authentication, mail routing and transport-security records for a public domain.</p></div></div>
       <label for="email-domain">Domain to check</label>
       <input id="email-domain" type="text" autocomplete="off" spellcheck="false" placeholder="example.com">
       <label for="dkim-selector">Custom DKIM selector <span class="fine-print">(optional — common selectors are scanned automatically)</span></label>
@@ -95,8 +95,9 @@
       <div class="controls">
         <button id="email-check" class="primary">Check email security</button>
       </div>
-      <div id="email-results" class="results" aria-live="polite">Enter a public domain to inspect its email authentication records.</div>
-      <p class="fine-print">This tool reads public DNS records only. It automatically tests a list of common DKIM selectors and can also test a custom selector you enter. The scan is not exhaustive because providers can use any selector name. These checks are configuration indicators, not a live test of an email message or a guarantee that messages pass authentication.</p>
+      <div id="email-results" class="results" aria-live="polite">Enter a public domain to inspect its email security configuration.</div>
+      <button id="email-report" class="secondary" type="button" hidden>Download assessment report</button>
+      <p class="fine-print">This tool checks public DNS records and retrieves the MTA-STS policy over HTTPS. Live SMTP TLS negotiation is explicitly marked “Not tested”: the checker does not open an SMTP connection or verify a live STARTTLS handshake, negotiated TLS version or mail-server certificate. It does not send email or guarantee message deliverability. Domain names and DNS lookup information are sent to this site’s Cloudflare Function and Cloudflare DNS. DKIM selector discovery is best-effort, not exhaustive.</p>
     </section>
 
     <section id="panel-privacy" class="panel">

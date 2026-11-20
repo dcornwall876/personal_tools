@@ -55,3 +55,11 @@ input[type="range"] { width:100%; accent-color:var(--accent); }
 footer { padding:30px 0 45px; color:#8a969e; font-size:11px; text-align:center; }
 footer p { margin:4px; }
 @media (max-width:600px) { .site-header { padding:0 18px; } .privacy-note { font-size:10px; } .intro { padding-top:40px; } .tabs { gap:4px; } .tab { padding:9px 10px; font-size:12px; } .result-row { flex-direction:column; } .result-row button { align-self:flex-start; } }
+
+/* Email authentication coverage indicator */
+.coverage-summary { padding:14px; margin:14px 0 18px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+.coverage-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--ink); }
+.coverage-heading strong:last-child { font-size:24px; letter-spacing:-.04em; }
+.coverage-track { height:10px; margin-top:10px; overflow:hidden; border-radius:99px; background:#e7edef; }
+.coverage-fill { height:100%; border-radius:99px; background:var(--accent); transition:width .25s ease; }
+.coverage-summary .fine-print { margin:9px 0 0; }
